@@ -18,6 +18,7 @@ imgIds = [42, 73, 74, 133, 136, 139, 143, 164, 192, 196, 208, 241, 257, 283, 285
 
 # running evaluation
 cocoEval = COCOeval(cocoGt,cocoDt,annType)
+# cocoEval.params.imgIds = imgIds[36:37]
 cocoEval.params.imgIds = imgIds
 # cocoEval.params.areaRng = cocoEval.params.areaRng[:1]
 cocoEval.evaluate()

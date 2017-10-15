@@ -2,9 +2,11 @@ import json
 import numpy as np
 import pickle
 from fcis.datasets.coco_utils import coco_instance_segmentation_label_names
-from fcis.datasets.coco_instance_segmentation_dataset import COCOInstanceSegmentationDataset
+# from fcis.datasets.coco_instance_segmentation_dataset import COCOInstanceSegmentationDataset
+from coco_instance_segmentation_dataset import COCOInstanceSegmentationDataset
 
 from pycocotools.mask import decode
+from pycocotools.mask import encode
 from pycocotools.mask import toBbox
 
 from mask_utils import whole_mask2mask
@@ -25,6 +27,7 @@ for ann in anns:
         data[ann['image_id']] = list()
 
     whole_m = decode(ann['segmentation'])
+    assert encode(whole_m)['counts'] == ann['segmentation']['counts']
     x_min, y_min, width, height = toBbox(ann['segmentation'])
     y_max = y_min + height
     x_max = x_min + width
@@ -48,7 +51,7 @@ for key in keys:
     labels.append(np.array([d['label'] for d in data_i], dtype=np.int32))
     scores.append(np.array([d['score'] for d in data_i], dtype=np.float32))
     whole_mask = np.array([d['whole_mask'] for d in data_i], dtype=np.bool)
-    masks.append(whole_mask2mask(whole_mask, bboxes[-1]))
+    masks.append(whole_mask)
 
 with open('data/fake.pkl', 'wb') as f:
     pickle.dump((bboxes, masks, labels, scores, keys), f)
@@ -65,6 +68,7 @@ gt_bboxes = [gt[1] for gt in gts]
 gt_labels = [gt[2] for gt in gts]
 gt_masks = [gt[3] for gt in gts]
 gt_crowded = [gt[4] for gt in gts]
+gt_area = [gt[5] for gt in gts]
 
 with open('data/fake_gt.pkl', 'wb') as f:
-    pickle.dump((sizes, gt_bboxes, gt_masks, gt_labels, gt_crowded), f) 
+    pickle.dump((sizes, gt_bboxes, gt_masks, gt_labels, gt_crowded, gt_area), f) 

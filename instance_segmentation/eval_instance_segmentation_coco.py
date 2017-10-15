@@ -9,17 +9,17 @@ try:
     import pycocotools.coco
     import pycocotools.cocoeval
     import pycocotools.mask as mask_tools
-    _availabel = True
+    _available = True
 except ImportError:
-    _availabel = False
+    _available = False
 
 from mask_utils import mask2whole_mask
 
 
 def eval_instance_segmentation_coco(sizes, pred_bboxes, pred_masks,
                                     pred_labels, pred_scores,
-                                    gt_bboxes, gt_masks, gt_labels, gt_crowdeds=None):
-    if not _availabel:
+                                    gt_bboxes, gt_masks, gt_labels, gt_crowdeds=None, gt_areas=None):
+    if not _available:
         raise ValueError(
             'Please install pycocotools \n'
             'pip install -e \'git+https://github.com/pdollar/coco.git'
@@ -38,21 +38,23 @@ def eval_instance_segmentation_coco(sizes, pred_bboxes, pred_masks,
     gt_labels = iter(gt_labels)
     gt_crowdeds = (iter(gt_crowdeds) if gt_crowdeds is not None
                    else itertools.repeat(None))
+    gt_areas = (iter(gt_areas) if gt_areas is not None
+                else itertools.repeat(None))
 
     images = list()
     pred_anns = list()
     gt_anns = list()
     unique_labels = dict()
     for i, (size, pred_bbox, pred_mask, pred_label, pred_score,
-            gt_bbox, gt_mask, gt_label, gt_crowded) in enumerate(
+            gt_bbox, gt_mask, gt_label, gt_crowded, gt_area) in enumerate(
                 six.moves.zip(
                     sizes, pred_bboxes, pred_masks, pred_labels, pred_scores,
-                    gt_bboxes, gt_masks, gt_labels, gt_crowdeds)):
+                    gt_bboxes, gt_masks, gt_labels, gt_crowdeds, gt_areas)):
         # Starting ids from 1 is important when using COCO.
         img_id = i + 1
 
-        pred_whole_mask = mask2whole_mask(pred_mask, pred_bbox, size)
-        gt_whole_mask = mask2whole_mask(gt_mask, gt_bbox, size)
+        pred_whole_mask = pred_mask
+        gt_whole_mask = gt_mask
         for pred_whole_m, pred_lbl, pred_sc in zip(
                 pred_whole_mask, pred_label, pred_score):
             pred_anns.append(
@@ -61,12 +63,12 @@ def eval_instance_segmentation_coco(sizes, pred_bboxes, pred_masks,
                             crw=0))
             unique_labels[pred_lbl] = True
 
-        for gt_whole_m, gt_lbl, gt_crw in zip(gt_whole_mask, gt_label,
-                                              gt_crowded):
+        for gt_whole_m, gt_lbl, gt_crw, gt_ar in zip(
+                gt_whole_mask, gt_label, gt_crowded, gt_area):
             gt_anns.append(
                 _create_ann(gt_whole_m, gt_lbl, None,
                             img_id=img_id, ann_id=len(gt_anns) + 1,
-                            crw=gt_crw))
+                            crw=gt_crw, ar=gt_ar))
             unique_labels[gt_lbl] = True
         images.append({'id': img_id, 'height': size[0], 'width': size[1]})
 
@@ -84,6 +86,7 @@ def eval_instance_segmentation_coco(sizes, pred_bboxes, pred_masks,
         ev.evaluate()
         ev.accumulate()
 
+    ev.summarize()
     results = {'coco_eval': ev}
     p = ev.params
     common_kwargs = {
@@ -139,17 +142,17 @@ def eval_instance_segmentation_coco(sizes, pred_bboxes, pred_masks,
     return results
 
 
-
-def _create_ann(whole_m, lbl, sc, img_id, ann_id, crw=None):
+def _create_ann(whole_m, lbl, sc, img_id, ann_id, crw=None, ar=None):
     H, W = whole_m.shape
     if crw is None:
         crw = False
     whole_m = np.asfortranarray(whole_m.astype(np.uint8))
     rle = mask_tools.encode(whole_m)
-    ar = mask_tools.area(rle)
+    # Surprisingly, ground truth ar can be different from area(rle)
+    if ar is None:
+        ar = mask_tools.area(rle)
     ann = {
         'image_id': img_id, 'category_id': lbl,
-        'bbox': mask_tools.toBbox(rle),
         'segmentation': rle,
         'area': ar,
         'id': ann_id,
