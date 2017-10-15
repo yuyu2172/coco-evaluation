@@ -27,7 +27,7 @@ for ann in anns:
     data[ann['image_id']].append(
         {'bbox': [y_min, x_min, y_max, x_max],
          'score': ann['score'],
-         'label': coco_bbox_label_names.index(cat_map[ann['category_id']]) + 1
+         'label': coco_bbox_label_names.index(cat_map[ann['category_id']])
          })
 
 
@@ -51,7 +51,7 @@ dataset = COCOBboxDataset(split='val', return_crowded=True, return_area=True, us
 indices = [dataset.ids.index(key) for key in keys]
 gts = dataset[indices]
 gt_bboxes = [gt[1] for gt in gts]
-gt_labels = [gt[2] + 1 for gt in gts]
+gt_labels = [gt[2] for gt in gts]
 gt_crowded = [gt[3] for gt in gts]
 gt_areas = [gt[4] for gt in gts]
 
