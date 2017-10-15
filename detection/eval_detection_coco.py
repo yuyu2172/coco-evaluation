@@ -1,4 +1,5 @@
 import contextlib
+import itertools
 import numpy as np
 import os
 import six
@@ -28,8 +29,10 @@ def eval_detection_coco(pred_bboxes, pred_labels, pred_scores, gt_bboxes,
     pred_scores = iter(pred_scores)
     gt_bboxes = iter(gt_bboxes)
     gt_labels = iter(gt_labels)
-    gt_crowdeds = iter(gt_crowdeds)
-    gt_areas = iter(gt_areas)
+    gt_crowdeds = (iter(gt_crowdeds) if gt_crowdeds is not None
+                   else itertools.repeat(None))
+    gt_areas = (iter(gt_areas) if gt_areas is not None
+                else itertools.repeat(None))
 
     images = list()
     pred_anns = list()
@@ -128,13 +131,15 @@ def eval_detection_coco(pred_bboxes, pred_labels, pred_scores, gt_bboxes,
     return results
 
 
-def _create_ann(bb, lbl, sc, img_id, ann_id, crw, ar):
+def _create_ann(bb, lbl, sc, img_id, ann_id, crw=None, ar=None):
     y_min = bb[0]
     x_min = bb[1]
     y_max = bb[2]
     x_max = bb[3]
     height = y_max - y_min
     width = x_max - x_min
+    if crw is None:
+        crw = False
     if ar is None:
         ar = height * width
     # Rounding is done to make the result consistent with COCO.
