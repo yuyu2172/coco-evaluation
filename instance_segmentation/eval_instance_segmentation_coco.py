@@ -18,7 +18,8 @@ from mask_utils import mask2whole_mask
 
 def eval_instance_segmentation_coco(sizes, pred_bboxes, pred_masks,
                                     pred_labels, pred_scores,
-                                    gt_bboxes, gt_masks, gt_labels, gt_crowdeds=None, gt_areas=None):
+                                    gt_bboxes, gt_masks, gt_labels,
+                                    gt_crowdeds=None, gt_areas=None):
     if not _available:
         raise ValueError(
             'Please install pycocotools \n'
@@ -58,7 +59,7 @@ def eval_instance_segmentation_coco(sizes, pred_bboxes, pred_masks,
         img_id = i + 1
 
         pred_whole_mask = mask2whole_mask(pred_mask, pred_bbox, size)
-        gt_whole_mask = mask2whole_mask(gt_mask, gt_bbox, size)      
+        gt_whole_mask = mask2whole_mask(gt_mask, gt_bbox, size)
         for pred_whole_m, pred_lbl, pred_sc in zip(
                 pred_whole_mask, pred_label, pred_score):
             pred_anns.append(
