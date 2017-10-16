@@ -11,6 +11,17 @@ from pycocotools.mask import toBbox
 
 from mask_utils import whole_mask2mask
 
+
+
+
+
+
+
+
+
+
+
+
 with open('data/categories.pkl', 'rb') as f:
     categories = pickle.load(f)
 cat_map = dict()
@@ -51,10 +62,12 @@ for key in keys:
     labels.append(np.array([d['label'] for d in data_i], dtype=np.int32))
     scores.append(np.array([d['score'] for d in data_i], dtype=np.float32))
     whole_mask = np.array([d['whole_mask'] for d in data_i], dtype=np.bool)
-    masks.append(whole_mask)
+    masks.append(whole_mask2mask(whole_mask, bboxes[-1]))
+    # masks.append(whole_mask)
 
 with open('data/fake.pkl', 'wb') as f:
     pickle.dump((bboxes, masks, labels, scores, keys), f)
+
 
 
 ##############################################################################
@@ -72,3 +85,4 @@ gt_area = [gt[5] for gt in gts]
 
 with open('data/fake_gt.pkl', 'wb') as f:
     pickle.dump((sizes, gt_bboxes, gt_masks, gt_labels, gt_crowded, gt_area), f) 
+

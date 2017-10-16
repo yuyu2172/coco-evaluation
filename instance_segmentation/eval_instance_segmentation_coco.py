@@ -53,8 +53,10 @@ def eval_instance_segmentation_coco(sizes, pred_bboxes, pred_masks,
         # Starting ids from 1 is important when using COCO.
         img_id = i + 1
 
-        pred_whole_mask = pred_mask
+        # pred_whole_mask = pred_mask
         gt_whole_mask = gt_mask
+        pred_whole_mask = mask2whole_mask(pred_mask, pred_bbox, size)
+        # gt_whole_mask = mask2whole_mask(gt_mask, gt_bbox, size)      
         for pred_whole_m, pred_lbl, pred_sc in zip(
                 pred_whole_mask, pred_label, pred_score):
             pred_anns.append(

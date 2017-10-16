@@ -19,8 +19,9 @@ def mask2whole_mask(mask, bbox, size):
     H, W = size
     whole_mask = np.zeros((R, H, W), dtype=np.bool)
 
-    for i, (m, bb) in enumerate(zip(mask, bbox.astype(np.int32))):
-        whole_mask[i, bb[0]:bb[2], bb[1]:bb[3]] = m
+    for i, (m, bb) in enumerate(zip(mask, bbox)):
+        bb = np.round(bb).astype(np.int32)
+        whole_mask[i, bb[0]:bb[2], bb[1]:bb[3]] = m.copy()
     return whole_mask
 
 
@@ -36,7 +37,8 @@ def whole_mask2mask(whole_mask, bbox):
 
     """
     mask = list()
-    for whole_m, bb in zip(whole_mask, bbox.astype(np.int32)):
+    for i, (whole_m, bb) in enumerate(zip(whole_mask, bbox)):
+        bb = np.round(bb).astype(np.int32)
         mask.append(whole_m[bb[0]:bb[2], bb[1]:bb[3]])
     return mask
 

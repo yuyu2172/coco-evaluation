@@ -83,14 +83,25 @@ class COCOInstanceSegmentationDataset(chainer.dataset.DatasetMixin):
         bbox = bbox[:, [1, 0, 3, 2]]
         label = np.array([self.cat_ids.index(ann['category_id'])
                           for ann in annotation], dtype=np.int32)
+        # Sanitize boxes using image shape
+        # bbox[:, :2] = np.maximum(bbox[:, :2], 0)
+        # bbox[:, 2] = np.minimum(bbox[:, 2], H)
+        # bbox[:, 3] = np.minimum(bbox[:, 3], W)
 
+        from mask_utils import mask2whole_mask
+        from mask_utils import whole_mask2mask
         mask = list()
-        for anno, bb in zip(annotation, bbox):
+        for anno, bb in zip(annotation, bbox.astype(np.int32)):
             m = self._segm_to_mask(anno['segmentation'], (H, W))
-            # bb = bb.astype(np.int32)
             # m = m[bb[0]:bb[2], bb[1]:bb[3]]
-            # mask.append(m)
             mask.append(m)
+        # whole_mask = np.stack(mask)
+        # new_mask = whole_mask2mask(whole_mask, bbox)
+        # new_whole_mask = mask2whole_mask(new_mask, bbox, (H, W))
+        # print('>>>>>>>>>')
+        # print len(mask)
+        # np.testing.assert_equal(new_whole_mask[0], mask[0])
+
         mask = np.stack(mask)
 
         crowded = np.array([ann['iscrowd']
@@ -98,11 +109,6 @@ class COCOInstanceSegmentationDataset(chainer.dataset.DatasetMixin):
 
         area = np.array([ann['area']
                          for ann in annotation], dtype=np.float32)
-
-        # Sanitize boxes using image shape
-        bbox[:, :2] = np.maximum(bbox[:, :2], 0)
-        bbox[:, 2] = np.minimum(bbox[:, 2], H)
-        bbox[:, 3] = np.minimum(bbox[:, 3], W)
 
         # Remove invalid boxes
         bbox_area = np.prod(bbox[:, 2:] - bbox[:, :2], axis=1)
