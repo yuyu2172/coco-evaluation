@@ -8,6 +8,7 @@ import chainer
 from chainercv import utils
 
 from fcis.datasets.coco_utils import get_coco
+from mask_utils import whole_mask2mask
 
 try:
     from pycocotools import mask as coco_mask
@@ -19,7 +20,8 @@ except ImportError:
 class COCOInstanceSegmentationDataset(chainer.dataset.DatasetMixin):
 
     def __init__(self, data_dir='auto', split='train',
-                 use_crowded=False, return_crowded=False):
+                 use_crowded=False, return_crowded=False,
+                 return_area=False):
         if not _availabel:
             raise ValueError(
                 'Please install pycocotools \n'
@@ -28,6 +30,7 @@ class COCOInstanceSegmentationDataset(chainer.dataset.DatasetMixin):
 
         self.use_crowded = use_crowded
         self.return_crowded = return_crowded
+        self.return_area = return_area
         if split in ['val', 'minival', 'valminusminival']:
             img_split = 'val'
         else:
@@ -83,32 +86,21 @@ class COCOInstanceSegmentationDataset(chainer.dataset.DatasetMixin):
         bbox = bbox[:, [1, 0, 3, 2]]
         label = np.array([self.cat_ids.index(ann['category_id'])
                           for ann in annotation], dtype=np.int32)
-        # Sanitize boxes using image shape
-        # bbox[:, :2] = np.maximum(bbox[:, :2], 0)
-        # bbox[:, 2] = np.minimum(bbox[:, 2], H)
-        # bbox[:, 3] = np.minimum(bbox[:, 3], W)
 
-        from mask_utils import mask2whole_mask
-        from mask_utils import whole_mask2mask
-        mask = list()
-        for anno, bb in zip(annotation, bbox.astype(np.int32)):
-            m = self._segm_to_mask(anno['segmentation'], (H, W))
-            # m = m[bb[0]:bb[2], bb[1]:bb[3]]
-            mask.append(m)
-        # whole_mask = np.stack(mask)
-        # new_mask = whole_mask2mask(whole_mask, bbox)
-        # new_whole_mask = mask2whole_mask(new_mask, bbox, (H, W))
-        # print('>>>>>>>>>')
-        # print len(mask)
-        # np.testing.assert_equal(new_whole_mask[0], mask[0])
-
-        mask = np.stack(mask)
+        whole_mask = np.stack([self._segm_to_mask(anno['segmentation'], (H, W))
+                               for anno in annotation])
+        mask = whole_mask2mask(whole_mask, bbox)
 
         crowded = np.array([ann['iscrowd']
                             for ann in annotation], dtype=np.bool)
 
         area = np.array([ann['area']
                          for ann in annotation], dtype=np.float32)
+
+        # Sanitize boxes using image shape
+        # bbox[:, :2] = np.maximum(bbox[:, :2], 0)
+        # bbox[:, 2] = np.minimum(bbox[:, 2], H)
+        # bbox[:, 3] = np.minimum(bbox[:, 3], W)
 
         # Remove invalid boxes
         bbox_area = np.prod(bbox[:, 2:] - bbox[:, :2], axis=1)
@@ -153,13 +145,15 @@ class COCOInstanceSegmentationDataset(chainer.dataset.DatasetMixin):
             bbox = bbox[np.logical_not(crowded)]
             label = label[np.logical_not(crowded)]
             mask = _index_list_by_mask(mask, np.logical_not(crowded))
-            area = area[np.logical_not(crowded)]
             crowded = crowded[np.logical_not(crowded)]
+            area = area[np.logical_not(crowded)]
 
+        example = [img, bbox, label, mask]
         if self.return_crowded:
-            return img, bbox, label, mask, crowded, area
-
-        return img, bbox, label, mask
+            example += [crowded]
+        if self.return_area:
+            example += [area]
+        return tuple(example)
 
 
 def _index_list_by_mask(l, mask):

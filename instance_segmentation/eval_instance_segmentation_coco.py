@@ -50,13 +50,15 @@ def eval_instance_segmentation_coco(sizes, pred_bboxes, pred_masks,
                 six.moves.zip(
                     sizes, pred_bboxes, pred_masks, pred_labels, pred_scores,
                     gt_bboxes, gt_masks, gt_labels, gt_crowdeds, gt_areas)):
+        if gt_area is None:
+            gt_area = itertools.repeat(None)
+        if gt_crowded is None:
+            gt_crowded = itertools.repeat(None)
         # Starting ids from 1 is important when using COCO.
         img_id = i + 1
 
-        # pred_whole_mask = pred_mask
-        gt_whole_mask = gt_mask
         pred_whole_mask = mask2whole_mask(pred_mask, pred_bbox, size)
-        # gt_whole_mask = mask2whole_mask(gt_mask, gt_bbox, size)      
+        gt_whole_mask = mask2whole_mask(gt_mask, gt_bbox, size)      
         for pred_whole_m, pred_lbl, pred_sc in zip(
                 pred_whole_mask, pred_label, pred_score):
             pred_anns.append(
@@ -88,7 +90,6 @@ def eval_instance_segmentation_coco(sizes, pred_bboxes, pred_masks,
         ev.evaluate()
         ev.accumulate()
 
-    ev.summarize()
     results = {'coco_eval': ev}
     p = ev.params
     common_kwargs = {
