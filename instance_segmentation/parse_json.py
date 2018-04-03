@@ -1,7 +1,7 @@
 import json
 import numpy as np
 import pickle
-from fcis.datasets.coco_utils import coco_instance_segmentation_label_names
+from coco_utils import coco_instance_segmentation_label_names
 # from fcis.datasets.coco_instance_segmentation_dataset import COCOInstanceSegmentationDataset
 from coco_instance_segmentation_dataset import COCOInstanceSegmentationDataset
 
