@@ -49,4 +49,4 @@ keys = ['map/iou=0.50:0.95/area=all/max_dets=20',
 
 print()
 for key in keys:
-    print(key, results[key])
+    print('\'{}\': {},'.format(key, results[key]))
