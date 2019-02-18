@@ -15,8 +15,8 @@ except ImportError:
 
 
 def eval_point_coco(pred_points, pred_labels, pred_scores,
-                    gt_points, gt_bboxes, gt_labels, gt_areas, gt_crowdeds=None):
-    compute_area_dependent_metrics = True
+                    gt_points, gt_is_valids, gt_bboxes, gt_labels,
+                    gt_areas, gt_crowdeds=None):
     if not _available:
         raise ValueError(
             'Please install pycocotools \n'
@@ -30,10 +30,16 @@ def eval_point_coco(pred_points, pred_labels, pred_scores,
     pred_labels = iter(pred_labels)
     pred_scores = iter(pred_scores)
     gt_points = iter(gt_points)
+    gt_is_valids = iter(gt_is_valids)
     gt_bboxes = iter(gt_bboxes)
     gt_labels = iter(gt_labels)
 
-    gt_areas = iter(gt_areas)
+    if gt_areas is None:
+        compute_area_dependent_metrics = False
+        gt_areas = itertools.repeat(None)
+    else:
+        compute_area_dependent_metrics = True
+        gt_areas = iter(gt_areas)
     gt_crowdeds = (iter(gt_crowdeds) if gt_crowdeds is not None
                    else itertools.repeat(None))
 
@@ -41,10 +47,14 @@ def eval_point_coco(pred_points, pred_labels, pred_scores,
     pred_annos = []
     gt_annos = []
     existent_labels = {}
-    for i, (pred_point, pred_label, pred_score, gt_point, gt_bbox, gt_label,
+    for i, (pred_point, pred_label, pred_score, gt_point, gt_is_valid,
+            gt_bbox, gt_label,
             gt_area, gt_crowded) in enumerate(six.moves.zip(
                 pred_points, pred_labels, pred_scores,
-                gt_points, gt_bboxes, gt_labels, gt_areas, gt_crowdeds)):
+                gt_points, gt_is_valids, gt_bboxes, gt_labels,
+                gt_areas, gt_crowdeds)):
+        if gt_area is None:
+            gt_area = itertools.repeat(None)
         if gt_crowded is None:
             gt_crowded = itertools.repeat(None)
         # Starting ids from 1 is important when using COCO.
@@ -52,20 +62,20 @@ def eval_point_coco(pred_points, pred_labels, pred_scores,
 
         for pred_pnt, pred_lb, pred_sc in zip(pred_point, pred_label,
                                               pred_score):
-            pred_pnt = pred_pnt.copy()
             # http://cocodataset.org/#format-results
             # Visibility flag is currently not used for evaluation
-            # pred_pnt[:, 2] = 1
+            is_v = np.ones(len(pred_pnt))
             pred_annos.append(
-                _create_anno(pred_pnt, None, pred_lb, pred_sc,
+                _create_anno(pred_pnt, is_v, None,
+                             pred_lb, pred_sc,
                              img_id=img_id, anno_id=len(pred_annos) + 1,
                              ar=None, crw=0))
             existent_labels[pred_lb] = True
 
-        for gt_pnt, gt_bb, gt_lb, gt_ar, gt_crw in zip(
-                gt_point, gt_bbox, gt_label, gt_area, gt_crowded):
+        for gt_pnt, gt_is_v, gt_bb, gt_lb, gt_ar, gt_crw in zip(
+                gt_point, gt_is_valid, gt_bbox, gt_label, gt_area, gt_crowded):
             gt_annos.append(
-                _create_anno(gt_pnt, gt_bb, gt_lb, None,
+                _create_anno(gt_pnt, gt_is_v, gt_bb, gt_lb, None,
                              img_id=img_id, anno_id=len(gt_annos) + 1,
                              ar=gt_ar, crw=gt_crw))
         ids.append({'id': img_id})
@@ -138,15 +148,15 @@ def eval_point_coco(pred_points, pred_labels, pred_scores,
         # either gt or prediction, but lies between 0 and
         # the maximum label id.
         # We set values for these classes to np.nan.
-        # results[key] = np.nan * np.ones(np.max(existent_labels) + 1)
-        # results[key][existent_labels] = metrics
+        results[key] = np.nan * np.ones(np.max(existent_labels) + 1)
+        results[key][existent_labels] = metrics
         results['m' + key] = mean_metric
 
     results['existent_labels'] = existent_labels
     return results
 
 
-def _create_anno(pnt, bb, lb, sc, img_id, anno_id, ar=None, crw=None):
+def _create_anno(pnt, is_v, bb, lb, sc, img_id, anno_id, ar=None, crw=None):
     # https://github.com/cocodataset/cocoapi/blob/master/PythonAPI/pycocotools/coco.py#L342
     y_min = np.min(pnt[:, 0])
     x_min = np.min(pnt[:, 1])
@@ -163,9 +173,10 @@ def _create_anno(pnt, bb, lb, sc, img_id, anno_id, ar=None, crw=None):
         bb_xywh = [x_min, y_min, x_max - x_min, y_max - y_min]
     else:
         bb_xywh = [bb[1], bb[0], bb[3] - bb[1], bb[2] - bb[0]]
+    pnt = np.concatenate((pnt[:, [1, 0]], is_v[:, None]), axis=1)
     anno = {
         'image_id': img_id, 'category_id': lb,
-        'keypoints': pnt[:, [1, 0, 2]].reshape((-1)).tolist(),
+        'keypoints': pnt.reshape((-1)).tolist(),
         'area': ar,
         'bbox': bb_xywh,
         'id': anno_id,
